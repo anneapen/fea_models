@@ -127,3 +127,21 @@ def get_structured_beam_data(raw_data: list[list[str]]) -> dict:
     structured_data['Supports'] = parse_supports(supports)
     structured_data['Loads'] = parse_loads(loads)
     return structured_data
+
+
+def get_node_locations(beam_length:float,supports:list[float])->dict[str,float]:
+        
+        """
+        Returns a dict representing the node number and the node coordinates for the provided 
+        support locations and beam length.
+        """
+        new_nodes = supports[:]
+        if 0.0 not in supports:
+            new_nodes.append(0.0)
+        if beam_length not in supports:
+            new_nodes.append(beam_length)
+        
+        node_locations = {}
+        for idx,loc in enumerate(sorted(new_nodes)):
+            node_locations.update({f"N{idx}":loc})
+        return node_locations 
