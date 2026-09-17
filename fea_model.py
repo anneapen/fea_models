@@ -22,3 +22,14 @@ def read_beam_file(filename: str) -> list[list[str]]:
             csv_acc.append(line)
             
     return csv_acc
+
+#Converting the string to float type
+def str_to_float(s:str) -> float|str:
+    """
+    Converts a string(or a list of strings) to float type.
+    if the string passed to the function cannot be converted into a float, then the original string is returned instead.
+    """
+    try:
+        return float(s)
+    except ValueError:
+        return s
