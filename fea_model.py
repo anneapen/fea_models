@@ -95,3 +95,19 @@ def parse_loads(data:list[list[str|float]])->list[dict]:
                     "Case": case})
             
     return acc  
+
+#Parsing the beam details from the data
+def parse_beam_attributes(data:list[float])->dict[str,float]:
+    """
+    Returns the list of length and section/material properties of the beam into
+    a dictionary which includes L,E,Iz,Iy,A,J,nu,rho
+    """
+    
+    attributes=['L','E','Iz','Iy','A','J','nu','rho']
+    acc={}
+    for idx,attr in enumerate(attributes):
+        try:
+            acc.update({attr:data[idx]})
+        except IndexError:
+            acc.update({attr:1.0})
+    return acc
