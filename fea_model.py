@@ -61,3 +61,37 @@ def parse_supports(data:list[str])->dict[float,str]:
         loc,support = item.split(":")
         acc.update({str_to_float(loc):support})
     return acc
+
+#Parsing the load details from the data
+def parse_loads(data:list[list[str|float]])->list[dict]:
+
+    """
+    Returns the load data in a structured form as list of dicts
+    """
+    acc=[]
+    for item in data:
+        type, dirn = item[0].split(":")
+        case = item[-1].split(":")[-1]
+        if type == "POINT":
+            mag=item[1]
+            loc=item[2]
+            acc.append({"Type": type.title(),
+                    "Direction": dirn.title(),
+                    "Magnitude": mag,
+                    "Location": loc,
+                    "Case": case})
+            
+        elif type == "DIST":
+            start_mag=item[1]
+            end_mag=item[2]
+            start_loc=item[3]
+            end_loc=item[4]
+            acc.append({"Type": type.title(),
+                    "Direction": dirn.title(),
+                    "Start Magnitude": start_mag,
+                    "End Magnitude": end_mag,
+                    "Start Location": start_loc,
+                    "End Location": end_loc,
+                    "Case": case})
+            
+    return acc  
