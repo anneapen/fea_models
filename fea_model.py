@@ -33,3 +33,19 @@ def str_to_float(s:str) -> float|str:
         return float(s)
     except ValueError:
         return s
+
+def convert_to_numeric(file_data:list[list[str]])->list[list[float]]:
+    """
+    Converts all of the numeric data into numbers
+    """
+    
+    numeric_data_final=[]
+    
+    for data in file_data:
+        numeric_data=[]
+        for line in data:
+            a = str_to_float(line.replace(","," "))
+            numeric_data.append(a)
+        numeric_data_final.append(numeric_data)
+
+    return numeric_data_final
