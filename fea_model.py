@@ -1,4 +1,5 @@
 from PyNite import FEModel3D
+import csv
 
 def calc_shear_modulus(nu:float, E:float) -> float:
     """
@@ -7,43 +8,199 @@ def calc_shear_modulus(nu:float, E:float) -> float:
     G = E / (2 * (1+nu))
     return G
 
-def fe_model_ss_cant(
-    w:float,
-    b:float,
-    a:float,
-    E:float,
-    I:float,
-    A:float,
-    J:float,
-    nu:float,
-    rho:float=1.,
-)-> FEModel3D:
+def read_beam_file(filename: str) -> list[list[str]]:
     
     """
-    Returns a PyNite.FEModel3D model of a simply supported beam
-    with a cantilever on one end.The beam is loaded with UDL.
-    w - The magnitude of the distributed load
-    b - The length of the backspan
-    a - The length of the cantilever
-    E - The elastic modulus of the beam material
-    I - The moment of inertia of the beam section
-    A - The cross-sectional area of the beam section
-    J - The polar moment of inertia of the beam section
-    nu - The Poisson's ratio of the beam material
-    rho - The density of the beam material
+    Returna a list of list of strings representing the text data in the file at
+    'filename'
+    """
+    csv_acc = [] # File data goes here
+    with open(filename, "r") as csv_file:
+        csv_reader = csv.reader(csv_file)
+        for line in csv_reader:
+            csv_acc.append(line)
+            
+    return csv_acc
+
+def str_to_float(s:str) -> float|str:
+    """
+    Converts a string(or a list of strings) to float type.
+    if the string passed to the function cannot be converted into a float, then the original string is returned instead.
+    """
+    try:
+        return float(s)
+    except ValueError:
+        return s
+
+def convert_to_numeric(file_data:list[list[str]])->list[list[float]]:
+    """
+    Converts all of the numeric data into numbers
+    """
+    
+    numeric_data_final=[]
+    
+    for data in file_data:
+        numeric_data=[]
+        for line in data:
+            a = str_to_float(line.replace(","," "))
+            numeric_data.append(a)
+        numeric_data_final.append(numeric_data)
+
+    return numeric_data_final
+
+def parse_supports(data:list[str])->dict[float,str]:
+    """
+    Returns a list of suppport details into a dictionary with support locations as keys and support types
+    as values where support types can be P(pinned),R(roller) or F(fixed)
+    """
+    acc={}
+    for item in data:
+        loc,support = item.split(":")
+        acc.update({str_to_float(loc):support})
+    return acc
+
+def parse_loads(data:list[list[str|float]])->list[dict]:
 
     """
-    model=FEModel3D()
+    Returns the load data in a structured form as list of dicts
+    """
+    acc=[]
+    for item in data:
+        type, dirn = item[0].split(":")
+        case = item[-1].split(":")[-1]
+        if type == "POINT":
+            mag=item[1]
+            loc=item[2]
+            acc.append({"Type": type.title(),
+                    "Direction": dirn.title(),
+                    "Magnitude": mag,
+                    "Location": loc,
+                    "Case": case})
+            
+        elif type == "DIST":
+            start_mag=item[1]
+            end_mag=item[2]
+            start_loc=item[3]
+            end_loc=item[4]
+            acc.append({"Type": type.title(),
+                    "Direction": dirn.title(),
+                    "Start Magnitude": start_mag,
+                    "End Magnitude": end_mag,
+                    "Start Location": start_loc,
+                    "End Location": end_loc,
+                    "Case": case})
+            
+    return acc  
+
+def parse_beam_attributes(data:list[float])->dict[str,float]:
+    """
+    Returns the list of length and section/material properties of the beam into
+    a dictionary which includes L,E,Iz,Iy,A,J,nu,rho
+    """
+    
+    attributes=['L','E','Iz','Iy','A','J','nu','rho']
+    acc={}
+    for idx,attr in enumerate(attributes):
+        try:
+            acc.update({attr:data[idx]})
+        except IndexError:
+            acc.update({attr:1.0})
+    return acc
+
+def get_structured_beam_data(raw_data: list[list[str]]) -> dict:
+    """
+    Returns a dictionary that has string keys describing the attributes of a beam for analysis.
+    """
+    numeric_beam_data = convert_to_numeric(raw_data)
+    beam_name = raw_data[0][0]
+    beam_attributes = parse_beam_attributes(numeric_beam_data[1])
+    supports = numeric_beam_data[2]
+    loads = numeric_beam_data[3:]
+    structured_data = {}
+    structured_data['Name'] = beam_name
+    structured_data.update(beam_attributes)
+    structured_data['Supports'] = parse_supports(supports)
+    structured_data['Loads'] = parse_loads(loads)
+    return structured_data
+
+def get_node_locations(beam_length:float,supports:list[float])->dict[str,float]:
+        
+        """
+        Returns a dict representing the node number and the node coordinates for the provided 
+        support locations and beam length.
+        """
+        new_nodes = supports[:]
+        if 0.0 not in supports:
+            new_nodes.append(0.0)
+        if beam_length not in supports:
+            new_nodes.append(beam_length)
+        
+        node_locations = {}
+        for idx,loc in enumerate(sorted(new_nodes)):
+            node_locations.update({f"N{idx}":loc})
+        return node_locations 
+
+def build_beam (beam_data:dict)->FEModel3D:
+    """
+    Returns a beam finite element model for the data in 'beam_data' 
+    """
+    
+    beam_model=FEModel3D()
+    L = beam_data["L"]
+    E = beam_data["E"]
+    I = beam_data["Iz"]
+    Iy=beam_data["Iy"]
+    J = beam_data["J"]
+    A = beam_data["A"]
+    nu=beam_data["nu"]
+    rho=beam_data["rho"]
+          
     G=calc_shear_modulus(nu,E)
-    model.add_material('default',E,G,nu,rho)
-    model.add_node("N0",0,0,0)
-    model.add_node("N1",b,0,0)
-    model.add_node("N2",b+a,0,0)
-    
-    model.def_support("N0",True,True,True,True,True,False)
-    model.def_support("N1",False,True,False,False,False,False)
+    beam_model.add_material('default',E,G,nu,rho)
+
+    support_loc=list(beam_data['Supports'].keys())
+    beam_data['Nodes'] = get_node_locations(L,support_loc)
+    node_dict=beam_data['Nodes']
+    for node_no, node_loc in node_dict.items():
+        beam_model.add_node(node_no,node_loc,0,0)
+        support_type = beam_data['Supports'].get(node_loc, None)
+        if support_type == "P":
+            beam_model.def_support(node_no, True, True, True, True, False, False)
+        elif support_type == "R":
+            beam_model.def_support(node_no, False, True, True, False, False, False)
+        elif support_type == "F":
+            beam_model.def_support(node_no, True, True, True, True, True, True)
 
     
-    model.add_member("M0","N0","N2",'default',Iy=1.0,Iz=I,J=J,A=A)
-    model.add_member_dist_load("M0","Fy",w1=w,w2=w)
-    return model
+    beam_model.add_member(beam_data['Name'],"N0",node_no,'default',Iy,I,J,A)
+    
+    load_cases = []
+    for load in beam_data['Loads']:
+        if load['Type'] == "Point":
+            beam_model.add_member_pt_load(
+                beam_data['Name'],
+                load['Direction'],
+                load['Magnitude'],
+                load['Location'],
+                case=load["Case"],
+            )
+            if load['Case'] not in load_cases:
+                load_cases.append(load['Case'])
+        elif load['Type'] == "Dist":
+            beam_model.add_member_dist_load(
+                beam_data['Name'],
+                load['Direction'],
+                load['Start Magnitude'],
+                load['End Magnitude'],
+                load['Start Location'],
+                load['End Location'],
+                case=load['Case']
+            )
+            if load['Case'] not in load_cases:
+                load_cases.append(load['Case'])
+
+    for load_case in load_cases:
+        beam_model.add_load_combo(load_case, {load_case: 1.0})
+    return beam_model
+        
+
