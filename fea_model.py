@@ -49,3 +49,15 @@ def convert_to_numeric(file_data:list[list[str]])->list[list[float]]:
         numeric_data_final.append(numeric_data)
 
     return numeric_data_final
+
+#Parsing the support details from the data
+def parse_supports(data:list[str])->dict[float,str]:
+    """
+    Returns a list of suppport details into a dictionary with support locations as keys and support types
+    as values where support types can be P(pinned),R(roller) or F(fixed)
+    """
+    acc={}
+    for item in data:
+        loc,support = item.split(":")
+        acc.update({str_to_float(loc):support})
+    return acc
