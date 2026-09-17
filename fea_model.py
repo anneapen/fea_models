@@ -111,3 +111,19 @@ def parse_beam_attributes(data:list[float])->dict[str,float]:
         except IndexError:
             acc.update({attr:1.0})
     return acc
+
+def get_structured_beam_data(raw_data: list[list[str]]) -> dict:
+    """
+    Returns a dictionary that has string keys describing the attributes of a beam for analysis.
+    """
+    numeric_beam_data = convert_to_numeric(raw_data)
+    beam_name = raw_data[0][0]
+    beam_attributes = parse_beam_attributes(numeric_beam_data[1])
+    supports = numeric_beam_data[2]
+    loads = numeric_beam_data[3:]
+    structured_data = {}
+    structured_data['Name'] = beam_name
+    structured_data.update(beam_attributes)
+    structured_data['Supports'] = parse_supports(supports)
+    structured_data['Loads'] = parse_loads(loads)
+    return structured_data
