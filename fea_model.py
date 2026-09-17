@@ -144,4 +144,68 @@ def get_node_locations(beam_length:float,supports:list[float])->dict[str,float]:
         node_locations = {}
         for idx,loc in enumerate(sorted(new_nodes)):
             node_locations.update({f"N{idx}":loc})
-        return node_locations 
+        return node_locations
+
+def build_beam (beam_data:dict)->FEModel3D:
+    """
+    Returns a beam finite element model for the data in 'beam_data' 
+    """
+    
+    beam_model=FEModel3D()
+    L = beam_data["L"]
+    E = beam_data["E"]
+    I = beam_data["Iz"]
+    Iy=beam_data["Iy"]
+    J = beam_data["J"]
+    A = beam_data["A"]
+    nu=beam_data["nu"]
+    rho=beam_data["rho"]
+          
+    G=calc_shear_modulus(nu,E)
+    beam_model.add_material('default',E,G,nu,rho)
+
+    support_loc=list(beam_data['Supports'].keys())
+    beam_data['Nodes'] = get_node_locations(L,support_loc)
+    node_dict=beam_data['Nodes']
+    for node_no, node_loc in node_dict.items():
+        beam_model.add_node(node_no,node_loc,0,0)
+        support_type = beam_data['Supports'].get(node_loc, None)
+        if support_type == "P":
+            beam_model.def_support(node_no, True, True, True, True, False, False)
+        elif support_type == "R":
+            beam_model.def_support(node_no, False, True, True, False, False, False)
+        elif support_type == "F":
+            beam_model.def_support(node_no, True, True, True, True, True, True)
+
+    
+    beam_model.add_member(beam_data['Name'],"N0",node_no,'default',Iy,I,J,A)
+    
+    load_cases = []
+    for load in beam_data['Loads']:
+        if load['Type'] == "Point":
+            beam_model.add_member_pt_load(
+                beam_data['Name'],
+                load['Direction'],
+                load['Magnitude'],
+                load['Location'],
+                case=load["Case"],
+            )
+            if load['Case'] not in load_cases:
+                load_cases.append(load['Case'])
+        elif load['Type'] == "Dist":
+            beam_model.add_member_dist_load(
+                beam_data['Name'],
+                load['Direction'],
+                load['Start Magnitude'],
+                load['End Magnitude'],
+                load['Start Location'],
+                load['End Location'],
+                case=load['Case']
+            )
+            if load['Case'] not in load_cases:
+                load_cases.append(load['Case'])
+
+    for load_case in load_cases:
+        beam_model.add_load_combo(load_case, {load_case: 1.0})
+    return beam_model
+        
