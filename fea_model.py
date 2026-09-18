@@ -208,4 +208,43 @@ def build_beam (beam_data:dict)->FEModel3D:
     for load_case in load_cases:
         beam_model.add_load_combo(load_case, {load_case: 1.0})
     return beam_model
+
+def beam_results(filename:str):
+    """
+    """
+    sample=read_beam_file(filename)
+    data=get_structured_beam_data(sample)
+    model=build_beam (data)
+    model.analyze()
+
+    print("Load combinations:", model.LoadCombos.keys())
+    print("Member:", data["Name"])
+
+    member = model.Members[data["Name"]]
+
+    print("Midspan moment:",
+          member.moment(
+              "Mz",
+              data["L"]/2,
+              "Dead"
+          ))
+    print("Deflection:",
+          member.min_deflection(
+              "dy",
+              "Dead"
+          ))
+
+    member.plot_moment(
+        Direction="Mz",
+        combo_name="Dead",
+        n_points=100
+    )
+
+    member.plot_shear(
+        Direction="Fy",
+        combo_name="Dead",
+        n_points=100
+    )
+
+    return model
         
