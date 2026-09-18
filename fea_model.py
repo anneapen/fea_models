@@ -211,6 +211,7 @@ def build_beam (beam_data:dict)->FEModel3D:
 
 def beam_results(filename:str):
     """
+    Returns the bending moment,shear force diagram and deflection values for the given beam
     """
     sample=read_beam_file(filename)
     data=get_structured_beam_data(sample)
